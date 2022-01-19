@@ -28,6 +28,7 @@ library("agricolae")
 
 data.2021 <- readRDS("data_2021.RDS")
 data.2021  <-  data.2021$data_mediciones
+data.2021$fecha <- as_datetime(data.2021$fecha)
 
 
 #### 0.2 Filtros, etiquetas, colores, etc ####
@@ -1502,17 +1503,17 @@ semana_tbl <- data.2021 %>%
   nest() %>% ungroup()
 
 
-plot_barra_tbl <- semana_tbl %>% 
+p_barras_tbl <- semana_tbl %>% 
   mutate(plots = map2(data, parametro, .f = barras_fun)) %>% 
-  mutate(filename = paste0("1_",w, '_', parametro, '.png'))
+  mutate(filename = paste0(w, '_1_', parametro, '.png'))
 
 
-walk2(plot_barra_tbl$filename, plots_tbl$plots, ggsave,scale = 1.4,width = 15,height = 7,units = c("cm"),dpi = 300,limitsize = TRUE)
+walk2(p_barras_tbl$filename, p_barras_tbl$plots, ggsave,scale = 1.4,width = 15,height = 7,units = c("cm"),dpi = 300,limitsize = TRUE)
 
 
 #### series de tiempo ####
 
-serie_t_fun <- function(df,.parametro){
+tseries_fun <- function(df,.parametro){
   df_1 <- df %>% mutate(parametro = factor(.parametro,
                                            levels = c("pm10","pm25","o3","so2","no2"),
                                            labels = c(expression("Material Particulado PM"[10]),
@@ -1587,12 +1588,12 @@ serie_t_fun <- function(df,.parametro){
 }
 
 
-plot_serie_t_tbl <- semana_tbl %>% 
-  mutate(plots = map2(data, parametro, .f = serie_t_fun)) %>% 
-  mutate(filename = paste0("2_",w, '_', parametro, '.png'))
+p_tseries_tbl <- semana_tbl %>% 
+  mutate(plots = map2(data, parametro, .f = tseries_fun)) %>% 
+  mutate(filename = paste0(w, '_2_', parametro, '.png'))
 
 
-walk2(plot_serie_t_tbl$filename, plot_serie_t_tbl$plots, ggsave,scale = 1.4,width = 15,height = 7,units = c("cm"),dpi = 300,limitsize = TRUE)
+walk2(p_tseries_tbl$filename, p_tseries_tbl$plots, ggsave,scale = 1.4,width = 15,height = 7,units = c("cm"),dpi = 300,limitsize = TRUE)
 
 
 ####
@@ -1601,62 +1602,74 @@ walk2(plot_serie_t_tbl$filename, plot_serie_t_tbl$plots, ggsave,scale = 1.4,widt
 #### heatmap ####
 
 
-heat_map_fun <- function(df){
+heatmap_fun <- function(df){
   
-ggplot(df, aes(as.factor(day(fecha)),
-               estacion,
-               fill = colores))+
-  
-  geom_tile(color = "black", size = .1)+
-  geom_text(aes(label = sprintf("%1.0f", pICA)),size=5, fontface = "bold")+
-  
-  ylab("Estaciones")+
-  xlab("Fecha")+
-  
-  scale_fill_manual("ICA", values = c("green", "yellow", "orange", "red", "purple", "brown"),
-                    labels = c('Buena', 'Aceptable', 'Danina a grupos sensibles',
-                               'Danina a la salud', 'Muy danina a la salud', 'Peligrosa'))+
-  
-  theme(  panel.grid.minor = element_blank(),
-          panel.grid.major = element_blank(),
-          panel.background = element_blank(),
-          panel.border = element_blank(),
-          panel.spacing.x = unit(0,"point"),
-          panel.spacing.y = unit(10,"point"),
-          axis.line.x = element_blank(),
-          axis.line.y = element_blank(),
-          axis.title = element_text(size=12),
-          axis.text = element_text(size=8),
-          axis.line = element_line(colour="black"),
-          plot.title = element_text(hjust=0.5),
-          plot.margin = margin(c(2,10,2,2),"point"),
-          legend.box.background = element_blank(),
-          legend.key = element_blank(),
-          legend.position = "bottom",
-          #legend.box = "vertical",
-          legend.box.just = "top",
-          legend.direction = "horizontal",
-          legend.box.margin = margin(c(-10,0,0,0),"point"),
-          legend.margin = margin(c(0,0,0,0),"point"),
-          legend.spacing.y = unit(1, "point"),
-          legend.key.height = unit(0, "point"),
-          legend.key.width = unit(15,"point"),
-          legend.text = element_text(size=9),
-          legend.title = element_text(size=10),
-          strip.text = element_text(size=11,face="bold",colour="white"),
-          strip.background = element_rect(colour="black",fill="#fcbf10ff"))
+ggplot(df, aes(x = fecha,
+               y = fct_rev(estacion),
+               fill = categoria))+
+    
+    geom_tile(color = "black", size = .1)+
+    
+    geom_text(aes(label = pICA),size=4, fontface = "bold")+
+    
+    scale_y_discrete("Estaciones", labels= lab.est, expand = c(0,0))+
+    scale_x_datetime("Fecha", breaks = "1 day", labels = date_format("%b %d"), expand = c(0,0))+ 
+    
+    scale_fill_manual("Indice de Calidad del Aire", values = c("green", "yellow", "orange", "red", "purple", "brown"))+
+    
+    theme(  panel.grid.minor = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            panel.border = element_blank(),
+            panel.spacing.x = unit(0,"point"),
+            panel.spacing.y = unit(10,"point"),
+            axis.line.x = element_blank(),
+            axis.line.y = element_blank(),
+            axis.title = element_text(size=12),
+            axis.text = element_text(size=10),
+            axis.line = element_line(colour="black"),
+            plot.title = element_text(hjust=0.5),
+            plot.margin = margin(c(2,10,2,2),"point"),
+            legend.box.background = element_blank(),
+            legend.key = element_blank(),
+            legend.position = "bottom",
+            #legend.box = "vertical",
+            legend.box.just = "top",
+            legend.direction = "horizontal",
+            legend.box.margin = margin(c(-10,0,0,0),"point"),
+            legend.margin = margin(c(0,0,0,0),"point"),
+            legend.spacing.y = unit(1, "point"),
+            legend.key.height = unit(0, "point"),
+            legend.key.width = unit(15,"point"),
+            legend.text = element_text(size=9),
+            legend.title = element_text(size=10),
+            strip.text = element_text(size=11,face="bold",colour="white"),
+            strip.background = element_rect(colour="black",fill="#fcbf10ff"))
 }
 
-  
 
-ica_tbl <- data.2021.ica.w %>% 
+ica_tbl <- data.2021.ica %>% 
+  group_by(fecha,estacion,a,m,w) %>% summarise_by_time(.date_var = fecha,
+                                                       .by= "day",
+                                                       pICA = round(quantile(ICA,c(0.75),na.rm=TRUE)),
+                                                       .week_start = NULL) %>% 
+  mutate(categoria = case_when(
+    (round(pICA) >= 0) & (round(pICA) <= 50) ~ "Buena",
+    (round(pICA) >= 51) & (round(pICA) <= 100) ~ "Aceptable",
+    (round(pICA) >= 101) & (round(pICA) <= 150) ~ "Dañina a grupos sensibles",
+    (round(pICA) >= 151) & (round(pICA) <= 200) ~ "Dañina a la salud",
+    (round(pICA) >= 201) & (round(pICA) <= 300) ~ "Muy dañina a la salud",
+    (round(pICA) >= 301) & (round(pICA) <= 500) ~ "Peligrosa")) %>% 
+  mutate(categoria = factor(categoria,
+                            levels = c("Buena","Aceptable","Dañina a grupos sensibles",
+                                       "Dañina a la salud","Muy dañina a la salud", "Peligrosa"))) %>% ungroup() %>%  
   group_by(w) %>% 
   nest() %>% ungroup()
 
 
-plot_heat_map_tbl <- ica_tbl %>% 
-  mutate(plots = map(data, .f = heat_map_fun)) %>% 
-  mutate(filename = paste0("3_",w,'.png'))
+p_heatmap_tbl <- ica_tbl %>% 
+  mutate(plots = map(data, .f = heatmap_fun)) %>% 
+  mutate(filename = paste0(w,"_3",'.png'))
 
 
-walk2(plot_heat_map_tbl$filename, plot_heat_map_tbl$plots, ggsave,scale = 1.4,width = 15,height = 7,units = c("cm"),dpi = 300,limitsize = TRUE)
+walk2(p_heatmap_tbl$filename, p_heatmap_tbl$plots, ggsave,scale = 1.4,width = 15,height = 7,units = c("cm"),dpi = 300,limitsize = TRUE)
